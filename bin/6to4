@@ -254,6 +254,19 @@ case "$1" in
             echo "Failed to delete $TUNNEL_ID"
         fi
     ;;
+
+    recovery)
+        set_mtu="$4"
+        [ -z "$set_mtu" ] && exit
+        select_if=$(ifconfig |awk '/^tun_6in4_/{print $1}')
+        echo "$select_if" |grep -q "^$TUNNEL_NAME$"
+        if [ $? -eq 0 ]; then
+            ip link set $TUNNEL_NAME mtu $set_mtu
+        else
+            bash $0 add "$TUNNEL_ID" "$REMOTE_IP"
+            ip link set $TUNNEL_NAME mtu $set_mtu
+        fi
+    ;;
     
     *) 
         usage
