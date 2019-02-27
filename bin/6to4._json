@@ -212,14 +212,24 @@ case "$1" in
     ;;
     
     recovery)
-        set_mtu = "$4"
+        set_mtu="$4"
         [ -z "$set_mtu" ] && exit
         select_if=$(ifconfig |awk '/^tun_6in4_/{print $1}')
         echo "$select_if" |grep -q "^$TUNNEL_NAME$"
         if [ $? -eq 0 ]; then
             ip link set $TUNNEL_NAME mtu $set_mtu
         else
-            bash $0 add "$TUNNEL_ID" "$REMOTE_IP"
+require_remote_ip
+
+        ip tunnel add $TUNNEL_NAME mode $TUNNEL_MODE remote $REMOTE_IP local $LOCAL_IP ttl $TUNNEL_TTL dev $INTERFACE > /dev/null 2>&1
+        if [[ $? -ne 0 ]]; then
+            echo "{\"status\":19500,\"msg\":\"Failed to add tunnel $TUNNEL_ID for $REMOTE_IP\"}"
+            exit
+        fi
+            ip link set $TUNNEL_NAME up mtu $LINK_MTU
+            ip addr add "${ENDPOINT_PREFIX}1/${TARGET_CIDR}" dev $TUNNEL_NAME
+            ip route add "${SUBNET_PREFIX}/${TARGET_CIDR}" dev $TUNNEL_NAME
+            echo "{\"status\":10200,\"msg\":\"success\",\"data\":{\"server_v4\":\" $LOCAL_IP\",\"server_v6\":\"${ENDPOINT_PREFIX}1/${TARGET_CIDR}\",\"client_v6\":\"${ENDPOINT_PREFIX}2/${TARGET_CIDR}\",\"prefix\":\"${SUBNET_PREFIX}/${TARGET_CIDR}\"}}"
             ip link set $TUNNEL_NAME mtu $set_mtu
         fi
     ;;
